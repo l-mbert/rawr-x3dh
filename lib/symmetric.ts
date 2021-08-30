@@ -2,6 +2,17 @@ import { CryptographyKey, SodiumPlus } from "sodium-plus";
 import { concat } from "./util";
 let sodium;
 
+declare global {
+    interface Window {
+        Buffer: any;
+    }
+}
+
+if (typeof (Buffer) === 'undefined') {
+    let Buffer = require('buffer/').Buffer;
+    window.Buffer = require('buffer/').Buffer;
+}
+
 const VERSION = "v1";
 const VERSION_BUF = Buffer.from(VERSION, 'utf-8');
 

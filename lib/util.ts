@@ -7,6 +7,17 @@ import {
     X25519SecretKey
 } from "sodium-plus";
 
+declare global {
+    interface Window {
+        Buffer: any;
+    }
+}
+
+if (typeof (Buffer) === 'undefined') {
+    let Buffer = require('buffer/').Buffer;
+    window.Buffer = require('buffer/').Buffer;
+}
+
 let sodium;
 export type Keypair = {secretKey: X25519SecretKey, publicKey: X25519PublicKey};
 

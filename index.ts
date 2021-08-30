@@ -72,6 +72,17 @@ import {
     wipe
 } from "./lib/util";
 
+declare global {
+    interface Window {
+        Buffer: any;
+    }
+}
+
+if (typeof (Buffer) === 'undefined') {
+    let Buffer = require('buffer/').Buffer;
+    window.Buffer = require('buffer/').Buffer;
+}
+
 /**
  * Initial server info.
  *

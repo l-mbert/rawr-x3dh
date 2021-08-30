@@ -6,8 +6,9 @@ import {
     X25519PublicKey,
     X25519SecretKey
 } from "sodium-plus";
+import { StorageManager } from "./storage";
 import {Keypair, wipe} from "./util";
-import { promises as fsp } from 'fs';
+import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 
@@ -49,6 +50,17 @@ export interface SessionKeyManagerInterface {
         Promise<void>;
     setSessionKey(id: string, key: CryptographyKey, recipient?: boolean):
         Promise<void>;
+}
+
+declare global {
+    interface Window {
+        Buffer: any;
+    }
+}
+
+if (typeof (Buffer) === 'undefined') {
+    let Buffer = require('buffer/').Buffer;
+    window.Buffer = require('buffer/').Buffer;
 }
 
 /**
@@ -218,6 +230,7 @@ export class DefaultIdentityKeyManager implements IdentityKeyManagerInterface {
     preKey?: PreKeyPair;
     oneTimeKeys: Map<string, X25519SecretKey>;
     sodium: SodiumPlus;
+    storage: StorageManager;
 
     constructor(sodium?: SodiumPlus, sk?: Ed25519SecretKey, pk?: Ed25519PublicKey) {
         if (sodium) {
@@ -233,6 +246,8 @@ export class DefaultIdentityKeyManager implements IdentityKeyManagerInterface {
                 this.identityPublic = pk;
             }
         }
+
+        this.storage = new StorageManager();
         this.oneTimeKeys = new Map<string, X25519SecretKey>();
     }
 
@@ -334,11 +349,15 @@ export class DefaultIdentityKeyManager implements IdentityKeyManagerInterface {
     async loadIdentityKeypair(filePath?: string): Promise<IdentityKeyPair> {
         const sodium = await this.getSodium();
         if (!filePath) {
-            filePath = path.join(os.homedir(), 'rawr-identity.json')
+            if (typeof window === 'undefined') {
+                filePath = path.join(os.homedir(), 'rawr-identity.json')
+            } else {
+                filePath = 'rawr-identity.json';
+            }
         }
-        await fsp.access(filePath);
-        const data: Buffer = await fsp.readFile(filePath);
-        const decoded = await JSON.parse(data.toString());
+        this.storage.access(filePath);
+        const data = this.storage.readFile(filePath)
+        const decoded = await JSON.parse(data);
         const sk = new Ed25519SecretKey(
             await sodium.sodium_hex2bin(decoded.sk)
         );
@@ -371,8 +390,8 @@ export class DefaultIdentityKeyManager implements IdentityKeyManagerInterface {
         if (!filePath) {
             filePath = path.join(os.homedir(), 'rawr-identity.json')
         }
-        await fsp.writeFile(
-            filePath,
+        this.storage.writeFile(
+            filePath, 
             JSON.stringify({
                 'sk': await sodium.sodium_bin2hex(identitySecret.getBuffer()),
                 'pk': await sodium.sodium_bin2hex(identitySecret.getBuffer().slice(32)),
